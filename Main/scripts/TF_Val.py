@@ -1,18 +1,37 @@
 """
-Transfer Function Validation
 
-This program validates the optimal transfer function against all datasets
-by calculating unnormalized NMSE, MSE, and MSO metrics.
+Transfer Function Validation Script.
+Compares Pnom(s) to each of the 4 Pk(s) models, and to itself.
+Calculates the NMSE, MSE, MSO, %VAF, and Fit Ratio for each comparison, does this by using control.forced_response to simulate the transfer function response yid(t)
+Additionally, it calculates the optimal model uncertainty using the parameter covariance matrices.
+
+
+
+You can choose the order of the models to test in __main__ , future implementations may allow for multiple orders to be compared against one another with a for loop.
+
+
+
+Imports Param_Opt construct the 5 transfer functions, Pk(s) and Pnom(s)
+Imports Model_valid_norm to help form Ax = b problems
+
+
 
 Author: Dylan Myers
+References: J R Forbes, MECH 412 Lecture Notes
 Date: 2025
 """
 
 import numpy as np
 import control
 import pathlib
-from Main import cross_dataset_split, d2c
-from Model_valid_norm import A_matrix
+import sys
+import os
+
+# Add parent directory to path to allow imports from src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.Main import cross_dataset_split, d2c
+from src.Model_valid_norm import A_matrix
 from Param_Opt import optimal_parameters, construct_TF
 
 # Define sampling time
@@ -20,7 +39,7 @@ T = 0.01
 
 # %%
 # Load data
-path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/load_data_sc/PRBS_DATA')
+path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/Main/data/load_data_sc/PRBS_DATA')
 all_files = sorted(path.glob("*.csv"))
 
 # Load all datasets
@@ -38,7 +57,7 @@ def calculate_metrics_on_dataset(tf_continuous, dataset_idx, order):
     u_raw = data_read[:, 1]
     y_raw = data_read[:, 2]
     
-    # Simulate the transfer function response
+    # Simulate the transfer function response using the contract dataset
     t_sim, y_sim = control.forced_response(tf_continuous, t_raw, u_raw)
     
     # Calculate metrics (unnormalized)
@@ -68,8 +87,7 @@ def calculate_metrics_on_dataset(tf_continuous, dataset_idx, order):
         'n_points': len(y_raw)
     }
 
-
-
+#Calls the metric computation function for each dataset
 def test_individual_model(model_idx, transfer_functions, results_matrix, model_names, order):
     """Test individual dataset model on all datasets"""
     model_name = f'dataset_{model_idx}'
@@ -95,6 +113,15 @@ def test_optimal_model(transfer_functions, results_matrix, model_names, order):
         metrics = calculate_metrics_on_dataset(tf_optimal, test_dataset_idx, order)
         results_matrix[4, test_dataset_idx, :] = [metrics['mse'], metrics['mso'], metrics['nmse'], metrics['vaf_percent'], metrics['fit_ratio']]
         print(f"    Test on Dataset {test_dataset_idx}: NMSE = {metrics['nmse']:.6f}")
+
+
+
+#%%
+
+'''
+Printing cells
+
+'''
 
 def print_summary_table(results_matrix, model_names):
     """Print comprehensive summary tables for all metrics"""
@@ -218,10 +245,17 @@ def calculate_rankings(results_matrix, model_names):
     
     return nmse_ranking_indices, avg_metrics_per_model
 
+
+#%%
+'''
+Calculating optimal model uncertainty
+'''
 def calculate_optimal_model_uncertainty(order):
     """
+
     Simple function to calculate parameter uncertainty for the optimal model.
     Based on the approach from 0_sys_ID_sc.py
+
     """
     from Param_Opt import analyze_all_datasets, optimal_parameters
     
@@ -319,6 +353,10 @@ def print_optimal_uncertainty(uncertainty_results, order):
     )):
         print(f"{param_name}: {param_value:.6f} ± {param_std:.6f} ({param_rel_unc*100:.2f}%)")
 
+
+
+
+#%%
 def run_model_comparison(order):
     # Get optimal parameters and construct all TFs
     analysis = optimal_parameters(order)
@@ -364,19 +402,16 @@ def run_model_comparison(order):
 # Example usage
 if __name__ == "__main__":
     # Run model comparison for Order 1
-    order = 1
+    order = 2
     comparison_results = run_model_comparison(order)
-    
-    print(f"\nComparison complete!")
     print(f"Best overall model: {comparison_results['model_names'][comparison_results['ranking'][0]]}")
     print(f"  Average NMSE: {comparison_results['avg_metrics_per_model'][comparison_results['ranking'][0], 0]:.6f}")
     print(f"  Average %VAF: {comparison_results['avg_metrics_per_model'][comparison_results['ranking'][0], 1]:.2f}%")
     print(f"  Average Fit Ratio: {comparison_results['avg_metrics_per_model'][comparison_results['ranking'][0], 2]:.4f}")
     
-    # Calculate and print optimal model uncertainty
-    print(f"\n{'='*60}")
-    print("CALCULATING OPTIMAL MODEL UNCERTAINTY...")
-    print(f"{'='*60}")
+
+
+
     
     uncertainty_results = calculate_optimal_model_uncertainty(order)
     print_optimal_uncertainty(uncertainty_results, order)

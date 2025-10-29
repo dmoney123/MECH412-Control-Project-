@@ -1,9 +1,27 @@
-"""Parameter Optimization and Uncertainty Analysis
+""" TF Parameter Optimization and Model Computation
 
-This program trains models on each dataset and computes parameter covariance matrices
-for uncertainty quantification and statistical validation.
+
+My idea is a kind of weighted average between the coefficients. 
+
+Going to use the parameter covariances to weight the parameters.
+
+Current Plan:
+	1) Train models using each of the4 data sets
+	2) Calculate the covariance matrix , and extract the uncertainty for each of the 4 models (!!!!UNORMALIZE BY EACH MODELS INDIVIDUAL NORMALIZATION CONSTANTS!!!!!)
+	3) Compute a P model with a weighted average of all the parameters. For future reference, this is the "nominal" model.
+	4) Calculate dt and ct TF of Pn
+	5) Compare error metrix using control.forced_response to calculate the IDed y
+
+This script utilizes dictionaries to store the results of the analysis, this is a good way to retrieve data later.
+This script imports A_matrix, to help form Ax = b problems
+This script imports d2c, to convert the discrete-time transfer function to a continuous-time transfer function
+This script imports cross_dataset_split, to help split the data into training and testing sets** May refactor to use this later, as of right now I have redundant code
+
 
 Author: Dylan Myers
+
+References: J R Forbes, MECH 412 Lecture Notes. CHAT GPT - Covariance Matrix Weighted Average
+
 Date: 2025
 """
 
@@ -13,16 +31,20 @@ from scipy import linalg
 import control
 from scipy.linalg import expm, logm
 import pathlib
+import sys
+import os
 
+# Add parent directory to path to allow imports from src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import functions from main.py
-from Main import cross_dataset_split
-from Model_valid_norm import A_matrix
-from Main import d2c
+from src.Main import cross_dataset_split
+from src.Model_valid_norm import A_matrix
+from src.Main import d2c
 
 # %%
 # Load data (reuse from main.py)
-path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/load_data_sc/PRBS_DATA')
+path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/Main/data/load_data_sc/PRBS_DATA')
 all_files = sorted(path.glob("*.csv"))
 data = [
     np.loadtxt(
@@ -38,6 +60,10 @@ T = 0.01  # sampling time
 
 # %%
 def train_model_on_dataset(dataset_idx, order):
+    """
+    Train a model on a given dataset, used as a function later on
+
+    """
     # Get data for this dataset
     dataset_data = data[dataset_idx, :, :]
     u_raw = dataset_data[:, 1]
@@ -56,6 +82,8 @@ def train_model_on_dataset(dataset_idx, order):
     x = linalg.solve(A.T @ A, A.T @ b)
     
     # Compute parameter covariance matrix
+
+
     # Covariance = σ² * (A^T * A)^(-1) where σ² is the residual variance
     residuals = b - A @ x
     sigma_squared = np.mean(residuals**2)
@@ -69,7 +97,7 @@ def train_model_on_dataset(dataset_idx, order):
     elif order == 3:
         param_names = ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']
     
-    # Create results dictionary
+    # Create results dictionary, useful for later reference
     results = {
         'dataset_idx': dataset_idx,
         'order': order,
@@ -87,6 +115,12 @@ def train_model_on_dataset(dataset_idx, order):
 
 # %%
 def analyze_all_datasets(order):
+
+    """
+
+    This function creates our 4 individual models, Pk(s). Each trained on a different dataset.
+
+    """
 
     print(f"Training Order {order} models on all datasets...")
     
@@ -126,10 +160,16 @@ def analyze_all_datasets(order):
 
 #%%
 def optimal_parameters(order):
+    """
+    Using the covariance matrices, we can calculate the optimal parameters and variances for the weighted average.
+
+    """
     dic_results = analyze_all_datasets(order)   
      
     # Extract parameter estimates and variances for each dataset
     param_array = np.array([res['parameters'] for res in dic_results['individual_results']])  # shape (4, n_params)
+
+
     param_names = dic_results['parameter_consistency']['param_names']
     n_params = len(param_names)
     
@@ -138,6 +178,11 @@ def optimal_parameters(order):
     for i, result in enumerate(dic_results['individual_results']):
         variance_matrix[i, :] = np.diag(result['covariance_matrix'])
     
+
+    """
+    Crucial Step: Unnormalize the parameters and variances to the common scale before optimal weighting
+    """
+
     # UNNORMALIZE parameters and variances to common scale before optimal weighting
     unnormalized_params = np.zeros((4, n_params))
     unnormalized_variances = np.zeros((4, n_params))
@@ -195,7 +240,8 @@ def optimal_parameters(order):
 
 def construct_TF(order, optimal_params):
     """
-    Construct 5 transfer functions:
+    Construct 5 transfer functions, 4 Pk(s) and 1 Pn(s)
+
     """
     # Get individual results for each dataset
     dic_results = analyze_all_datasets(order)
@@ -252,8 +298,9 @@ def construct_TF(order, optimal_params):
 # %%
 # Example usage
 if __name__ == "__main__":
-    # Analyze Order 2 system
-    order = 2
+
+    # Change the order to test different model orders
+    order = 1
     analysis = optimal_parameters(order)
     
     # Print optimal results table

@@ -1,14 +1,9 @@
 """
-Plotting Framework for System Identification Assignment
+Plotting Framework for the project
 
-This module generates plots to answer the assignment question about identifying
-a continuous-time nominal model P(s) from discrete-time input-output data.
 
-Required plots:
-1. Measured output vs. System ID'ed output vs. time
-2. Error vs. time  
-3. Percent relative error vs. time
-4. Additional validation plots
+
+
 
 Author: Dylan Myers
 Date: 2025
@@ -18,21 +13,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 import control
 import pathlib
-from Main import cross_dataset_split, d2c
-from Model_valid_norm import A_matrix
-from Param_Opt import optimal_parameters, construct_TF
+import sys
+import os
+
+# Add parent directory to path to allow imports from src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.Main import cross_dataset_split, d2c
+from src.Model_valid_norm import A_matrix
+from scripts.Param_Opt import optimal_parameters, construct_TF
 
 # Define sampling time
 T = 0.01
 
 # Load data
-path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/load_data_sc/PRBS_DATA')
+path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/Main/data/load_data_sc/PRBS_DATA')
 all_files = sorted(path.glob("*.csv"))
-
-# Load all datasets
-data = np.zeros((4, 1000, 3))
-for i, file in enumerate(all_files):
-    data[i, :, :] = np.loadtxt(file, delimiter=',')
+data = [
+    np.loadtxt(
+        filename,
+        dtype=float,
+        delimiter=',',
+        skiprows=1,
+        usecols=(0, 1, 2),
+    ) for filename in all_files
+]
+data = np.array(data)
 
 def simulate_model_on_dataset(tf_continuous, dataset_idx):
     """Simulate the continuous-time transfer function on a dataset"""
@@ -181,7 +187,7 @@ def plot_optimal_model_error_all_datasets(order, save_path=None):
 
 def plot_nmse_heatmap(order, save_path=None):
     """Plot NMSE values as a heatmap for easy visualization"""
-    from TF_Val import run_model_comparison
+    from scripts.TF_Val import run_model_comparison
     
     # Get the comparison results
     comparison_results = run_model_comparison(order)
@@ -296,8 +302,8 @@ def generate_simple_plots(order=1, save_plots=True):
 
 # %%
 if __name__ == "__main__":
-    # Generate simplified plots for Order 1 system
-    order = 4
+    # Generate simplified plots for Order 2 system
+    order = 2
     plots = generate_simple_plots(order, save_plots=False)
     
     print(f"\nSimplified plot generation complete for Order {order} system!")

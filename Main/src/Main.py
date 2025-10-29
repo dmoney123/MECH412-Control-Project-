@@ -1,8 +1,16 @@
-"""MECH 412 sample code.
+"""
+This was my inital attempt at a main.py file, it was used to help me understand the project and the data.
 
-J R Forbes, 2025/10/13
+Mostly used to dabble with the data and models
 
-This code loads the data.
+Other scropts import some of the functions from this file that I though were useful
+
+It is not used in the final project, but it is a good reference for future reference.
+
+Author: Dylan Myers, J R Forbes
+Date: October 2025
+References: J R Forbes, MECH 412 Lecture Notes
+
 """
 
 # %%
@@ -75,7 +83,7 @@ plt.rc('grid', linestyle='--')
 
 # %%
 # Read in all input-output (IO) data
-path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/load_data_sc/PRBS_DATA')
+path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/Main/data/load_data_sc/PRBS_DATA')
 all_files = sorted(path.glob("*.csv"))
 # all_files.sort()
 data = [

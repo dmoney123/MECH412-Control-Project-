@@ -1,8 +1,22 @@
-"""MECH 412 sample code.
+"""
 
-J R Forbes, 2025/10/13
 
-This code loads the data.
+This code performs cross-dataset validation of the model order.
+
+It works by training a three orders (1.2.3) of models on one dataset and then testing it on the other three.
+The trained dataset is then rotated and another 3 models are trained and tested on the new dataset.
+This process is repeated for all four datasets.
+
+
+The goal is to investigate which model order we should use to model our system
+
+As of right now, this isn't explicitly used in the project, but this is still useful for future reference.
+
+
+
+Author: Dylan Myers
+References: J R Forbes, MECH 412 Lecture Notes
+Date: October 2025
 """
 
 # %%
@@ -20,7 +34,7 @@ from scipy.linalg import expm, logm
 
 # %%
 # Read in all input-output (IO) data
-path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/load_data_sc/PRBS_DATA')
+path = pathlib.Path('/Users/dylanmyers/Desktop/5thyear/MECH412/Project/Main/data/load_data_sc/PRBS_DATA')
 all_files = sorted(path.glob("*.csv"))
 # all_files.sort()
 data = [
@@ -96,7 +110,6 @@ u_bar = cross_dataset_data['scaling']['u_bar']
 y_bar = cross_dataset_data['scaling']['y_bar']
 
 #Inspired by lecture notes 7a-sysID# --> CONSIDER REFACTORING <---
-
 def A_matrix(uk, yk, u_bar, y_bar, order):
     N_train = len(yk)
     
